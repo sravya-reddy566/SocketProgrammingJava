@@ -2,51 +2,41 @@ import java.io.*;
 import java.net.*;
 import java.util.Scanner;
 
-public class DateClient {
+public class DateClient_sgarika1 {
     public static void main(String[] args) {
 
-        String serverIP = "172.16.42.102"; // replace with your server IP
-        int port = 6013;
+        // Use try-with-resources to auto-close everything
+        try (
+            Socket sock = new Socket("172.16.42.102", 6013);
+            PrintWriter out = new PrintWriter(sock.getOutputStream(), true);
+            BufferedReader in = new BufferedReader(new InputStreamReader(sock.getInputStream()));
+            Scanner scanner = new Scanner(System.in)
+        ) {
+            System.out.println("Connected to server.");
+            System.out.println("Type messages to send to the server. Type 'exit' to quit.");
 
-        try {
-            Socket socket = new Socket(serverIP, port);
-            System.out.println("Connected to server at " + serverIP + ":" + port);
-
-            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            Scanner scanner = new Scanner(System.in);
-
-            // Thread for receiving messages from server
-            Thread receiveThread = new Thread(() -> {
-                try {
-                    String serverMsg;
-                    while ((serverMsg = in.readLine()) != null) {
-                        System.out.println("Server: " + serverMsg);
-                    }
-                } catch (IOException e) {
-                    System.out.println("Server disconnected.");
-                }
-            });
-            receiveThread.start();
-
-            // Main thread: send messages to server
+            String response; // declare once
             while (true) {
                 System.out.print("You: ");
-                String msg = scanner.nextLine();
-                out.println(msg);
+                String message = scanner.nextLine();
 
-                if (msg.equalsIgnoreCase("exit")) {
-                    break;
+                if (message.equalsIgnoreCase("exit")) {
+                    break; // exit the loop
+                }
+
+                out.println(message); // send message
+
+                // Optional: read server response
+                response = in.readLine();
+                if (response != null) {
+                    System.out.println("Server: " + response);
                 }
             }
 
-            // Clean up
-            socket.close();
-            scanner.close();
             System.out.println("Disconnected from server.");
 
         } catch (IOException e) {
-            System.err.println("Connection error: " + e.getMessage());
-        }
+            System.err.println("Connection error: " + e);
+        } // try-with-resources automatically closes streams and socket
     }
 }
