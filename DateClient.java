@@ -4,8 +4,10 @@ import java.util.Scanner;
 
 public class DateClient {
 
+    private static final Object PRINT_LOCK = new Object();
+
     public static void main(String[] args) {
-        String serverIp = "172.16.58.53";   
+        String serverIp = "172.16.58.53";
         int port = 6013;
 
         try (
@@ -14,25 +16,33 @@ public class DateClient {
             PrintWriter out = new PrintWriter(sock.getOutputStream(), true);
             Scanner scanner = new Scanner(System.in)
         ) {
-            System.out.println("Connected to server " + serverIp + ":" + port);
+            safePrintln("Connected to server " + serverIp + ":" + port);
 
+            // Reader thread: prints anything from server immediately
             Thread reader = new Thread(() -> {
                 try {
                     String line;
                     while ((line = in.readLine()) != null) {
-                        System.out.println(line);
-                        System.out.print("You: ");
+                        synchronized (PRINT_LOCK) {
+                           
+                            System.out.print("\r");        
+                            System.out.println(line);      
+                            System.out.print("You: ");      
+                            System.out.flush();
+                        }
                     }
                 } catch (IOException e) {
-                    System.out.println("\n[Disconnected from server]");
+                    safePrintln("\n[Disconnected from server]");
                 }
             });
             reader.setDaemon(true);
             reader.start();
-
-            // Writer loop
             while (true) {
-                System.out.print("You: ");
+                synchronized (PRINT_LOCK) {
+                    System.out.print("You: ");
+                    System.out.flush();
+                }
+
                 String msg = scanner.nextLine();
                 out.println(msg);
 
@@ -41,10 +51,16 @@ public class DateClient {
                 }
             }
 
-            System.out.println("Client closed.");
+            safePrintln("Client closed.");
 
         } catch (IOException e) {
-            System.out.println("Connection error: " + e.getMessage());
+            safePrintln("Connection error: " + e.getMessage());
+        }
+    }
+
+    private static void safePrintln(String s) {
+        synchronized (PRINT_LOCK) {
+            System.out.println(s);
         }
     }
 }
