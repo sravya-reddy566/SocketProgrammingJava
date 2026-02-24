@@ -8,10 +8,7 @@ public class DateServer {
 
     private static final int PORT = 6013;
 
-    // name -> handler
     private static final ConcurrentHashMap<String, ClientHandler> clientsByName = new ConcurrentHashMap<>();
-
-    // Who the server is currently chatting with (selected client)
     private static final AtomicReference<String> activeChat = new AtomicReference<>(null);
 
     public static void main(String[] args) {
@@ -20,7 +17,6 @@ public class DateServer {
         try (ServerSocket server = new ServerSocket(PORT);
              Scanner sc = new Scanner(System.in)) {
 
-            // Accept clients continuously
             Thread acceptThread = new Thread(() -> {
                 while (true) {
                     try {
@@ -37,14 +33,13 @@ public class DateServer {
 
             printHelp();
 
-            // SERVER CONSOLE = NORMAL CHAT INPUT
             while (true) {
                 String line = sc.nextLine();
                 if (line == null) continue;
+
                 line = line.trim();
                 if (line.isEmpty()) continue;
 
-                // Slash commands
                 if (line.equalsIgnoreCase("/help")) {
                     printHelp();
                     continue;
@@ -75,15 +70,11 @@ public class DateServer {
                     break;
                 }
 
-                // NORMAL CHAT BEHAVIOR:
-                // If active client selected -> send to them
-                // Else -> broadcast (or you can choose to require /to)
                 String target = activeChat.get();
                 if (target != null && clientsByName.containsKey(target)) {
                     sendTo(target, "SERVER: " + line);
                     System.out.println("You -> " + target + ": " + line);
                 } else {
-                    // No active chat: broadcast to everyone
                     broadcast("SERVER: " + line, null);
                     System.out.println("You (broadcast): " + line);
                 }
@@ -137,11 +128,10 @@ public class DateServer {
         clientsByName.clear();
     }
 
-    // Handles one client connection
     private static class ClientHandler extends Thread {
         private final Socket socket;
-        private BufferedReader in;
-        private PrintWriter out;
+        private final BufferedReader in;
+        private final PrintWriter out;
         private String clientName;
 
         ClientHandler(Socket socket) throws IOException {
@@ -153,7 +143,6 @@ public class DateServer {
         @Override
         public void run() {
             try {
-                // Ask for name and ensure unique
                 while (true) {
                     send("SERVER: Enter your name:");
                     String name = in.readLine();
@@ -179,7 +168,6 @@ public class DateServer {
                 System.out.println(clientName + " connected from " + socket.getInetAddress());
 
                 activeChat.compareAndSet(null, clientName);
-
                 broadcast("SERVER: " + clientName + " joined.", clientName);
 
                 String msg;
@@ -188,8 +176,6 @@ public class DateServer {
                     if (msg.isEmpty()) continue;
 
                     System.out.println(clientName + ": " + msg);
-
-                  
                     activeChat.set(clientName);
 
                     if (msg.equalsIgnoreCase("bye") || msg.equalsIgnoreCase("exit")) {
@@ -197,12 +183,13 @@ public class DateServer {
                         break;
                     }
 
-                  
+                    // optional acknowledgement
                     send("SERVER: (received)");
                 }
 
             } catch (IOException e) {
-                System.out.println("Client disconnected: " + (clientName != null ? clientName : socket.getInetAddress()));
+                System.out.println("Client disconnected: " +
+                        (clientName != null ? clientName : socket.getInetAddress()));
             } finally {
                 close();
             }
@@ -218,7 +205,6 @@ public class DateServer {
                 broadcast("SERVER: " + clientName + " left.", clientName);
                 System.out.println(clientName + " removed.");
 
-               
                 if (clientName.equals(activeChat.get())) {
                     String next = clientsByName.keySet().stream().findFirst().orElse(null);
                     activeChat.set(next);
