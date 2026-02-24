@@ -2,41 +2,49 @@ import java.io.*;
 import java.net.*;
 import java.util.Scanner;
 
-public class DateClient_sgarika1 {
-    public static void main(String[] args) {
+public class DateClient {
 
-        // Use try-with-resources to auto-close everything
-        try (
-            Socket sock = new Socket("172.16.42.102", 6013);
-            PrintWriter out = new PrintWriter(sock.getOutputStream(), true);
-            BufferedReader in = new BufferedReader(new InputStreamReader(sock.getInputStream()));
-            Scanner scanner = new Scanner(System.in)
-        ) {
-            System.out.println("Connected to server.");
-            System.out.println("Type messages to send to the server. Type 'exit' to quit.");
+    public static void main(String[] args) {
+        String serverIp = "172.16.58.53";   
+        int port = 6013;
 
-            String response; // declare once
-            while (true) {
-                System.out.print("You: ");
-                String message = scanner.nextLine();
+        try (
+            Socket sock = new Socket(serverIp, port);
+            BufferedReader in = new BufferedReader(new InputStreamReader(sock.getInputStream()));
+            PrintWriter out = new PrintWriter(sock.getOutputStream(), true);
+            Scanner scanner = new Scanner(System.in)
+        ) {
+            System.out.println("Connected to server " + serverIp + ":" + port);
 
-                if (message.equalsIgnoreCase("exit")) {
-                    break; // exit the loop
-                }
+            Thread reader = new Thread(() -> {
+                try {
+                    String line;
+                    while ((line = in.readLine()) != null) {
+                        System.out.println(line);
+                        System.out.print("You: ");
+                    }
+                } catch (IOException e) {
+                    System.out.println("\n[Disconnected from server]");
+                }
+            });
+            reader.setDaemon(true);
+            reader.start();
 
-                out.println(message); // send message
+            // Writer loop
+            while (true) {
+                System.out.print("You: ");
+                String msg = scanner.nextLine();
+                out.println(msg);
 
-                // Optional: read server response
-                response = in.readLine();
-                if (response != null) {
-                    System.out.println("Server: " + response);
-                }
-            }
+                if (msg.equalsIgnoreCase("exit") || msg.equalsIgnoreCase("bye")) {
+                    break;
+                }
+            }
 
-            System.out.println("Disconnected from server.");
+            System.out.println("Client closed.");
 
-        } catch (IOException e) {
-            System.err.println("Connection error: " + e);
-        } // try-with-resources automatically closes streams and socket
-    }
+        } catch (IOException e) {
+            System.out.println("Connection error: " + e.getMessage());
+        }
+    }
 }
