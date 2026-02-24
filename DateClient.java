@@ -2,67 +2,42 @@ import java.io.*;
 import java.net.*;
 import java.util.Scanner;
 
-public class DateClient {
+public class DateClient {
 
-    private static final Object PRINT_LOCK = new Object();
+    public static void main(String[] args) {
+        String serverIp = "172.16.58.53"; // change to server machine IP
+        int port = 6013;
 
-    public static void main(String[] args) {
-        String serverIp = "172.16.58.53";
-        int port = 6013;
+        try (
+            Socket socket = new Socket(serverIp, port);
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            Scanner scanner = new Scanner(System.in)
+        ) {
+            // Reader thread (so you see "Enter your name:" immediately)
+            Thread reader = new Thread(() -> {
+                try {
+                    String line;
+                    while ((line = in.readLine()) != null) {
+                        System.out.println(line);
+                    }
+                } catch (IOException ignored) {}
+            });
+            reader.setDaemon(true);
+            reader.start();
 
-        try (
-            Socket sock = new Socket(serverIp, port);
-            BufferedReader in = new BufferedReader(new InputStreamReader(sock.getInputStream()));
-            PrintWriter out = new PrintWriter(sock.getOutputStream(), true);
-            Scanner scanner = new Scanner(System.in)
-        ) {
-            safePrintln("Connected to server " + serverIp + ":" + port);
+            // Writer loop
+            while (true) {
+                String msg = scanner.nextLine();
+                out.println(msg);
 
-            // Reader thread: prints anything from server immediately
-            Thread reader = new Thread(() -> {
-                try {
-                    String line;
-                    while ((line = in.readLine()) != null) {
-                        synchronized (PRINT_LOCK) {
-                            // Print server message on a fresh line + re-print prompt
-                            System.out.print("\r");          // go to start of line
-                            System.out.println(line);        // print server line
-                            System.out.print("You: ");       // show prompt again
-                            System.out.flush();
-                        }
-                    }
-                } catch (IOException e) {
-                    safePrintln("\n[Disconnected from server]");
-                }
-            });
-            reader.setDaemon(true);
-            reader.start();
+                if (msg.equalsIgnoreCase("exit") || msg.equalsIgnoreCase("bye")) {
+                    break;
+                }
+            }
 
-            // Writer loop
-            while (true) {
-                synchronized (PRINT_LOCK) {
-                    System.out.print("You: ");
-                    System.out.flush();
-                }
-
-                String msg = scanner.nextLine();
-                out.println(msg);
-
-                if (msg.equalsIgnoreCase("exit") || msg.equalsIgnoreCase("bye")) {
-                    break;
-                }
-            }
-
-            safePrintln("Client closed.");
-
-        } catch (IOException e) {
-            safePrintln("Connection error: " + e.getMessage());
-        }
-    }
-
-    private static void safePrintln(String s) {
-        synchronized (PRINT_LOCK) {
-            System.out.println(s);
-        }
-    }
+        } catch (IOException e) {
+            System.out.println("Connection error: " + e.getMessage());
+        }
+    }
 }
