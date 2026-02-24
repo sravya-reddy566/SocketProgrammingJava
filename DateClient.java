@@ -24,10 +24,10 @@ public class DateClient {
                     String line;
                     while ((line = in.readLine()) != null) {
                         synchronized (PRINT_LOCK) {
-                           
-                            System.out.print("\r");        
-                            System.out.println(line);      
-                            System.out.print("You: ");      
+                            // Print server message on a fresh line + re-print prompt
+                            System.out.print("\r");          // go to start of line
+                            System.out.println(line);        // print server line
+                            System.out.print("You: ");       // show prompt again
                             System.out.flush();
                         }
                     }
@@ -37,6 +37,8 @@ public class DateClient {
             });
             reader.setDaemon(true);
             reader.start();
+
+            // Writer loop
             while (true) {
                 synchronized (PRINT_LOCK) {
                     System.out.print("You: ");
